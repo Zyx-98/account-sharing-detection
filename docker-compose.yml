@@ -1,0 +1,66 @@
+services:
+  postgres:
+    image: postgres:14-alpine
+    container_name: account_sharing_postgres
+    environment:
+      POSTGRES_DB: account_sharing_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+
+  redis:
+    image: redis:alpine
+    container_name: account_sharing_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - app_network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: account_sharing_app
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: secret
+      DATABASE_NAME: account_sharing_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: jwt-secret
+      JWT_EXPIRES_IN: 24h
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - app_network
+    command: >
+      sh -c "
+        npm run migration:run &&
+        npm run start:prod
+      "
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  app_network:
+    driver: bridge
